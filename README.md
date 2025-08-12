@@ -21,9 +21,10 @@ npm i -D nodemon
 cp .env.example .env   # edit values
 ```
 
-# terminal A – backend
+
 
 cd backend
 npm run dev
 
-# -> API on http://localhost:${PORT:-4000}
+
+
