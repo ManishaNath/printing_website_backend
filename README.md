@@ -1,2 +1,29 @@
-# printing_website_backend
-Backend for Printingwebsite in which the enquiry form will POST to  backend and send email to the owner (a minimal Express+Mongoose server)
+## 1) Initialize projects
+
+```bash
+# clone your repo dir
+mkdir -p sri-lakshmi-printers && cd sri-lakshmi-printers
+
+# frontend
+npx create-react-app frontend --use-npm
+cd frontend
+npm i -D tailwindcss postcss autoprefixer
+npx tailwindcss init -p
+# replace generated files with those in this repo (src/, public/, configs)
+cd ..
+
+# backend
+mkdir backend && cd backend
+npm init -y
+npm i express mongoose cors dotenv express-validator
+npm i -D nodemon
+# add files from this repo (server.js, src/**)
+cp .env.example .env   # edit values
+```
+
+# terminal A – backend
+
+cd backend
+npm run dev
+
+# -> API on http://localhost:${PORT:-4000}
