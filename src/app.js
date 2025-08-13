@@ -44,6 +44,14 @@ function buildCorsCheck() {
     return ok ? cb(null, true) : cb(new Error("Not allowed by CORS"));
   };
 }
+// Debug (place BEFORE app.use(cors(...)))
+app.get("/debug/cors", (req, res) => {
+  res.json({
+    origin: req.headers.origin || null,
+    host: req.headers.host,
+    url: req.url,
+  });
+});
 
 app.use(
   cors({
@@ -63,3 +71,4 @@ app.get("/health", (_req, res) => res.json({ ok: true }));
 app.use("/enquiries", enquiriesRoute);
 
 module.exports = app;
+
