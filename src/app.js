@@ -1,10 +1,38 @@
-// /src/app.js
+// D:\GITHUB\printing_website_backend\src\app.js
 const express = require("express");
 const cors = require("cors");
 const enquiriesRoute = require("./routes/enquiries");
 
 const app = express();
-app.use(express.json());
+
+// robust JSON parsing (handles */json too)
+app.use(express.json({ limit: "1mb", type: ["application/json", "application/*+json"] }));
+
+// normalize body: sometimes comes as string/empty in serverless proxies
+app.use((req, _res, next) => {
+  const ct = req.headers["content-type"] || "";
+  const isJson =
+    ct.includes("application/json") || ct.includes("application/") && ct.includes("+json");
+
+  if (isJson) {
+    // if body is a string, try JSON.parse; if empty, make it {}
+    if (typeof req.body === "string") {
+      try { req.body = JSON.parse(req.body || "{}"); } catch { /* ignore */ }
+    } else if (req.body == null) {
+      req.body = {};
+    }
+  }
+  if (process.env.DEBUG_REQ === "1") {
+    console.log("REQ", {
+      method: req.method,
+      url: req.url,
+      hasBody: req.body && Object.keys(req.body).length > 0,
+      keys: req.body ? Object.keys(req.body) : [],
+      ct,
+    });
+  }
+  next();
+});
 
 // --- Robust CORS allowlist from CORS_ORIGIN (comma-separated) ---
 function buildCorsCheck() {
@@ -22,19 +50,19 @@ function buildCorsCheck() {
       const u = new URL(origin);
       for (const e of entries) {
         if (!e) continue;
-        if (e === origin) return true;                 // exact
-        if (/^https?:\/\//i.test(e)) {                 // scheme+host
+        if (e === origin) return true;
+        if (/^https?:\/\//i.test(e)) {
           const eu = new URL(e);
           if (eu.hostname === u.hostname && eu.protocol === u.protocol) return true;
           continue;
         }
-        if (e.startsWith(".")) {                       // wildcard domain: .netlify.app
+        if (e.startsWith(".")) {
           if (u.hostname.endsWith(e.slice(1))) return true;
           continue;
         }
-        if (u.hostname === e) return true;             // bare hostname
+        if (u.hostname === e) return true;
       }
-    } catch (_) {}
+    } catch {}
     return false;
   }
 
@@ -44,14 +72,6 @@ function buildCorsCheck() {
     return ok ? cb(null, true) : cb(new Error("Not allowed by CORS"));
   };
 }
-// Debug (place BEFORE app.use(cors(...)))
-app.get("/debug/cors", (req, res) => {
-  res.json({
-    origin: req.headers.origin || null,
-    host: req.headers.host,
-    url: req.url,
-  });
-});
 
 app.use(
   cors({
@@ -63,12 +83,8 @@ app.use(
   })
 );
 
-// Health + routes (no '*' patterns – safe for Express v5)
+// Health + routes
 app.get("/health", (_req, res) => res.json({ ok: true }));
-
-// NOTE: mount at /enquiries (simpler function path)
-// Production URL: /.netlify/functions/api/enquiries
 app.use("/enquiries", enquiriesRoute);
 
 module.exports = app;
-
