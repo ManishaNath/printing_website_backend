@@ -1,6 +1,6 @@
-// D:\GITHUB\printing_website_backend\src\services\mailer.js
-// Nodemailer wrapper. If SMTP env is missing, this becomes a no-op.
-// Why: Netlify must be able to bundle without secrets; avoid throwing.
+// /src/services/mailer.js
+// Nodemailer wrapper with a single, unified sendEnquiryEmail() function.
+// If SMTP env vars are missing, email sending is skipped but logged.
 
 const nodemailer = require("nodemailer");
 
@@ -56,43 +56,29 @@ function buildHtml(enq) {
   </div>`;
 }
 
-async function sendNewEnquiryEmail(enq) {
-  const t = getTransporter();
-  if (!t) return; // no-op when SMTP not set
-  const subject = `New Enquiry – ${enq.name} – ${enq.service} x ${enq.quantity}`;
-  await t.sendMail({
-    from: SMTP_FROM,
-    to: NOTIFY_TO,
-    subject,
-    html: buildHtml(enq),
-  });
-}
-async function sendEnquiryNotification(data) {
-  console.log("[Mailer] Preparing to send enquiry email:", data);
+async function sendEnquiryEmail(enq) {
+  console.log("[Mailer] Preparing to send enquiry email...");
 
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT || 587),
-    secure: false,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
+  const t = getTransporter();
+  if (!t) {
+    console.warn("[Mailer] Skipped sending email (SMTP not configured).");
+    return;
+  }
+
+  const subject = `New Enquiry – ${enq.name || "Unknown"} – ${enq.service || "No Service"} x ${enq.quantity || "-"}`;
 
   try {
-    let info = await transporter.sendMail({
-      from: process.env.SMTP_FROM,
-      to: process.env.NOTIFY_TO,
-      subject: `New Enquiry: ${data.service || "No Service"}`,
-      text: JSON.stringify(data, null, 2),
+    const info = await t.sendMail({
+      from: SMTP_FROM,
+      to: NOTIFY_TO,
+      subject,
+      html: buildHtml(enq),
     });
-    console.log("[Mailer] Email sent successfully:", info.messageId);
-    return info;
+    console.log("[Mailer] Email sent successfully. Message ID:", info.messageId);
   } catch (err) {
     console.error("[Mailer] Failed to send email:", err);
     throw err;
   }
 }
-module.exports = { sendNewEnquiryEmail, sendEnquiryNotification };
 
+module.exports = { sendEnquiryEmail };
