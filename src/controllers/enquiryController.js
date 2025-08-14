@@ -1,6 +1,6 @@
 // /src/controllers/enquiryController.js
 const Enquiry = require("../models/Enquiry");
-const { sendNewEnquiryEmail } = require("../services/mailer");
+const { sendEnquiryEmail } = require("../services/mailer");
 
 async function createEnquiry(req, res) {
   try {
@@ -12,12 +12,10 @@ async function createEnquiry(req, res) {
     }
 
     const doc = await Enquiry.create(req.body);
-
     console.log("[create] Saved enquiry _id:", String(doc._id));
 
     try {
-      await sendNewEnquiryEmail(doc);
-      console.log("[create] Email notification sent successfully.");
+      await sendEnquiryEmail(doc);
     } catch (mailErr) {
       console.error("[create] Email send failed:", mailErr);
     }
