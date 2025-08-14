@@ -1,18 +1,31 @@
+// /src/controllers/enquiryController.js
 const Enquiry = require("../models/Enquiry");
-const { sendNewEnquiryEmail, sendEnquiryNotification } = require("../services/mailer");
+const { sendNewEnquiryEmail } = require("../services/mailer");
 
 async function createEnquiry(req, res) {
   try {
-    if (process.env.DEBUG_REQ === "1") console.log("[create] body keys:", Object.keys(req.body || {}));
-    const doc = await Enquiry.create(req.body);
-    if (process.env.DEBUG_REQ === "1") console.log("[create] saved _id:", String(doc._id));
+    if (process.env.DEBUG_REQ === "1") {
+      console.log("[create] Incoming enquiry request");
+      console.log("[create] Content-Type:", req.headers["content-type"]);
+      console.log("[create] Body keys:", Object.keys(req.body || {}));
+      console.log("[create] Body:", req.body);
+    }
 
-    // fire-and-forget; don’t block response
-    sendNewEnquiryEmail(doc).catch((e) => console.error("[mailer] error:", e.message));
+    const doc = await Enquiry.create(req.body);
+
+    console.log("[create] Saved enquiry _id:", String(doc._id));
+
+    try {
+      await sendNewEnquiryEmail(doc);
+      console.log("[create] Email notification sent successfully.");
+    } catch (mailErr) {
+      console.error("[create] Email send failed:", mailErr);
+    }
+
     res.status(201).json(doc);
-  } catch (e) {
-    console.error("[create] error:", e.message);
-    res.status(400).json({ error: e.message });
+  } catch (err) {
+    console.error("[create] Error creating enquiry:", err);
+    res.status(400).json({ error: err.message });
   }
 }
 
@@ -21,23 +34,4 @@ async function listEnquiries(_req, res) {
   res.json(items);
 }
 
-
-exports.createEnquiry = async (req, res) => {
-  try {
-    const enquiry = await Enquiry.create(req.body);
-    console.log("[Controller] Enquiry created:", enquiry);
-
-    try {
-      await sendEnquiryNotification(enquiry);
-    } catch (mailErr) {
-      console.error("[Controller] Email send failed:", mailErr.message);
-    }
-
-    res.status(201).json(enquiry);
-  } catch (err) {
-    console.error("[Controller] Failed to create enquiry:", err.message);
-    res.status(500).json({ error: err.message });
-  }
-};
 module.exports = { createEnquiry, listEnquiries };
-
