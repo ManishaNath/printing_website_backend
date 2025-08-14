@@ -1,5 +1,5 @@
 const Enquiry = require("../models/Enquiry");
-const { sendNewEnquiryEmail } = require("../services/mailer");
+const { sendNewEnquiryEmail, sendEnquiryNotification } = require("../services/mailer");
 
 async function createEnquiry(req, res) {
   try {
@@ -21,4 +21,23 @@ async function listEnquiries(_req, res) {
   res.json(items);
 }
 
+
+exports.createEnquiry = async (req, res) => {
+  try {
+    const enquiry = await Enquiry.create(req.body);
+    console.log("[Controller] Enquiry created:", enquiry);
+
+    try {
+      await sendEnquiryNotification(enquiry);
+    } catch (mailErr) {
+      console.error("[Controller] Email send failed:", mailErr.message);
+    }
+
+    res.status(201).json(enquiry);
+  } catch (err) {
+    console.error("[Controller] Failed to create enquiry:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+};
 module.exports = { createEnquiry, listEnquiries };
+
