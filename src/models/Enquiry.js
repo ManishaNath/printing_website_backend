@@ -1,4 +1,4 @@
-// /backend/src/models/Enquiry.js
+// D:\GITHUB\printing_website_backend\src\models\Enquiry.js
 const { Schema, model } = require("mongoose");
 
 const EnquirySchema = new Schema(
@@ -7,13 +7,9 @@ const EnquirySchema = new Schema(
     company: { type: String, trim: true },
     email: { type: String, trim: true },
     phone: { type: String, trim: true },
+    city:  { type: String, trim: true }, // NEW
     service: { type: String, required: true },
     quantity: { type: Number, required: true, min: 1 },
-    size: { type: String },
-    paper: { type: String },
-    finish: { type: String },
-    colors: { type: String },
-    deadline: { type: String },
     notes: { type: String },
   },
   { timestamps: true }
