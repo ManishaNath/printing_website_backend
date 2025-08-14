@@ -67,5 +67,32 @@ async function sendNewEnquiryEmail(enq) {
     html: buildHtml(enq),
   });
 }
+async function sendEnquiryNotification(data) {
+  console.log("[Mailer] Preparing to send enquiry email:", data);
 
-module.exports = { sendNewEnquiryEmail };
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT || 587),
+    secure: false,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+
+  try {
+    let info = await transporter.sendMail({
+      from: process.env.SMTP_FROM,
+      to: process.env.NOTIFY_TO,
+      subject: `New Enquiry: ${data.service || "No Service"}`,
+      text: JSON.stringify(data, null, 2),
+    });
+    console.log("[Mailer] Email sent successfully:", info.messageId);
+    return info;
+  } catch (err) {
+    console.error("[Mailer] Failed to send email:", err);
+    throw err;
+  }
+}
+module.exports = { sendNewEnquiryEmail, sendEnquiryNotification };
+
