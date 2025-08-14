@@ -1,50 +1,38 @@
-// D:\GITHUB\printing_website_backend\src\app.js
+// /src/app.js
 const express = require("express");
 const cors = require("cors");
 const enquiriesRoute = require("./routes/enquiries");
 
 const app = express();
 
-// robust JSON parsing (handles */json too)
+// robust JSON parsing (incl. application/*+json)
 app.use(express.json({ limit: "1mb", type: ["application/json", "application/*+json"] }));
 
-// normalize body: sometimes comes as string/empty in serverless proxies
+// normalize when body arrives as string/empty
 app.use((req, _res, next) => {
   const ct = req.headers["content-type"] || "";
-  const isJson =
-    ct.includes("application/json") || ct.includes("application/") && ct.includes("+json");
-
+  const isJson = ct.includes("application/json") || (ct.includes("application/") && ct.includes("+json"));
   if (isJson) {
-    // if body is a string, try JSON.parse; if empty, make it {}
     if (typeof req.body === "string") {
-      try { req.body = JSON.parse(req.body || "{}"); } catch { /* ignore */ }
+      try { req.body = JSON.parse(req.body || "{}"); } catch {}
     } else if (req.body == null) {
       req.body = {};
     }
   }
   if (process.env.DEBUG_REQ === "1") {
-    console.log("REQ", {
-      method: req.method,
-      url: req.url,
-      hasBody: req.body && Object.keys(req.body).length > 0,
-      keys: req.body ? Object.keys(req.body) : [],
-      ct,
-    });
+    console.log("REQ", { method: req.method, url: req.url, keys: Object.keys(req.body || {}), ct });
   }
   next();
 });
 
-// --- Robust CORS allowlist from CORS_ORIGIN (comma-separated) ---
+// CORS allowlist from CORS_ORIGIN
 function buildCorsCheck() {
-  const raw = (process.env.CORS_ORIGIN || "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const raw = (process.env.CORS_ORIGIN || "").split(",").map(s => s.trim()).filter(Boolean);
   const allowAny = raw.includes("*");
-  const entries = raw.filter((v) => v !== "*");
+  const entries = raw.filter(v => v !== "*");
 
   function isAllowed(origin) {
-    if (!origin) return true; // curl/Postman
+    if (!origin) return true;
     if (allowAny) return true;
     try {
       const u = new URL(origin);
@@ -73,18 +61,15 @@ function buildCorsCheck() {
   };
 }
 
-app.use(
-  cors({
-    origin: buildCorsCheck(),
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    preflightContinue: false,
-    optionsSuccessStatus: 204,
-  })
-);
+app.use(cors({
+  origin: buildCorsCheck(),
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  preflightContinue: false,
+  optionsSuccessStatus: 204,
+}));
 
-// Health + routes
 app.get("/health", (_req, res) => res.json({ ok: true }));
-app.use("/enquiries", enquiriesRoute);
+app.use("/enquiries", enquiriesRoute); // POST /enquiries
 
 module.exports = app;
