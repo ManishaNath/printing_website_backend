@@ -1,4 +1,5 @@
-// /src/app.js
+// D:\GITHUB\printing_website_backend\src\app.js
+// Keep this version (robust JSON + request logging + CORS allowlist)
 const express = require("express");
 const cors = require("cors");
 const enquiriesRoute = require("./routes/enquiries");
@@ -25,12 +26,10 @@ app.use((req, _res, next) => {
   next();
 });
 
-// CORS allowlist from CORS_ORIGIN
 function buildCorsCheck() {
   const raw = (process.env.CORS_ORIGIN || "").split(",").map(s => s.trim()).filter(Boolean);
   const allowAny = raw.includes("*");
   const entries = raw.filter(v => v !== "*");
-
   function isAllowed(origin) {
     if (!origin) return true;
     if (allowAny) return true;
@@ -53,7 +52,6 @@ function buildCorsCheck() {
     } catch {}
     return false;
   }
-
   return (origin, cb) => {
     const ok = isAllowed(origin);
     if (process.env.DEBUG_CORS === "1") console.log("CORS", { origin, ok, entries });
@@ -70,6 +68,6 @@ app.use(cors({
 }));
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
-app.use("/enquiries", enquiriesRoute); // POST /enquiries
+app.use("/enquiries", enquiriesRoute);
 
 module.exports = app;
