@@ -1,35 +1,41 @@
-// D:\GITHUB\printing_website_backend\src\app.js
-// Keep this version (robust JSON + request logging + CORS allowlist)
 const express = require("express");
 const cors = require("cors");
 const enquiriesRoute = require("./routes/enquiries");
 
 const app = express();
 
-// robust JSON parsing (incl. application/*+json)
-app.use(express.json({ limit: "1mb", type: ["application/json", "application/*+json"] }));
+// Always parse JSON regardless of +json suffix or lowercase variations
+app.use((req, res, next) => {
+  let rawType = (req.headers["content-type"] || "").toLowerCase();
 
-// normalize when body arrives as string/empty
-app.use((req, _res, next) => {
-  const ct = req.headers["content-type"] || "";
-  const isJson = ct.includes("application/json") || (ct.includes("application/") && ct.includes("+json"));
-  if (isJson) {
-    if (typeof req.body === "string") {
-      try { req.body = JSON.parse(req.body || "{}"); } catch {}
-    } else if (req.body == null) {
-      req.body = {};
-    }
+  // parse JSON types
+  if (rawType.includes("application/json") || rawType.includes("+json")) {
+    let data = "";
+    req.on("data", chunk => {
+      data += chunk;
+    });
+    req.on("end", () => {
+      try {
+        req.body = data ? JSON.parse(data) : {};
+      } catch (err) {
+        console.error("JSON parse error:", err.message);
+        req.body = {};
+      }
+      next();
+    });
+  } else {
+    next();
   }
-  if (process.env.DEBUG_REQ === "1") {
-    console.log("REQ", { method: req.method, url: req.url, keys: Object.keys(req.body || {}), ct });
-  }
-  next();
 });
 
 function buildCorsCheck() {
-  const raw = (process.env.CORS_ORIGIN || "").split(",").map(s => s.trim()).filter(Boolean);
+  const raw = (process.env.CORS_ORIGIN || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   const allowAny = raw.includes("*");
-  const entries = raw.filter(v => v !== "*");
+  const entries = raw.filter((v) => v !== "*");
+
   function isAllowed(origin) {
     if (!origin) return true;
     if (allowAny) return true;
@@ -52,6 +58,7 @@ function buildCorsCheck() {
     } catch {}
     return false;
   }
+
   return (origin, cb) => {
     const ok = isAllowed(origin);
     if (process.env.DEBUG_CORS === "1") console.log("CORS", { origin, ok, entries });
@@ -59,13 +66,20 @@ function buildCorsCheck() {
   };
 }
 
-app.use(cors({
-  origin: buildCorsCheck(),
-  methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  preflightContinue: false,
-  optionsSuccessStatus: 204,
-}));
+app.use(
+  cors({
+    origin: buildCorsCheck(),
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
+  })
+);
+
+// Debug route to see parsed body
+app.post("/debug/body", (req, res) => {
+  res.json({ parsedBody: req.body, type: typeof req.body });
+});
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.use("/enquiries", enquiriesRoute);
